@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify-version:
+    name: Verify tag matches crate version
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable @ 2026-04
+        with:
+          toolchain: stable
+
+      # The tag can be edited in the release form, so check it against Cargo.toml
+      # before publishing.
+      - name: Compare tag to crate version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          expected="${TAG#v}"
+          mismatched=$(cargo metadata --no-deps --format-version 1 \
+            | jq -r --arg v "$expected" '.packages[] | select(.version != $v) | "\(.name) \(.version)"')
+          if [ -n "$mismatched" ]; then
+            echo "::error::Release tag ${TAG} does not match crate version:"
+            echo "$mismatched"
+            exit 1
+          fi
+          echo "Crate is at ${expected}"
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: verify-version
+    # Only runs from a `v*.*.*` tag may use this environment. Set the tag rule in
+    # the repo settings, and the same environment name on the crate's Trusted
+    # Publisher entry on crates.io.
+    environment: crates-io
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable @ 2026-04
+        with:
+          toolchain: stable
+
+      - name: Authenticate with crates.io
+        id: auth
+        uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
+
+      - name: Publish bevy_settings_plus
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+        run: cargo publish --locked

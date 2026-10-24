@@ -1,0 +1,71 @@
+name: Release Drafter
+
+# Releases come from `bevy-*` branches, which depend on crates.io Bevy. `main`
+# depends on Bevy's git `main`, which can't be published, so it has no releases.
+on:
+  push:
+    branches:
+      - "bevy-*"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+# One run at a time, so a queued run sees the previous run's version-bump commit.
+concurrency:
+  group: release-drafter
+  cancel-in-progress: false
+
+jobs:
+  release-drafter:
+    name: Release Drafter
+    runs-on: blacksmith-2vcpu-ubuntu-2404
+    steps:
+      - uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7
+        id: drafter
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable @ 2026-04
+        with:
+          toolchain: stable
+
+      - name: Install cargo-edit
+        uses: taiki-e/install-action@a4d3f3f761dcd95cce1b72cb61cb6d1963438177 # v2.87.30
+        env:
+          # There is no prebuilt cargo-edit; it is built from source with stable.
+          RUSTUP_TOOLCHAIN: stable
+        with:
+          tool: cargo-edit
+
+      - name: Bump version
+        env:
+          VERSION: ${{ steps.drafter.outputs.resolved_version }}
+        # `cargo set-version` needs network access (it runs `cargo metadata`).
+        # It is skipped when the resolved version is lower than Cargo.toml's,
+        # as for the first draft on a new branch; release.yml still rejects a
+        # tag that doesn't match Cargo.toml.
+        run: |
+          current=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          if [ "$(printf '%s\n%s\n' "$current" "$VERSION" | sort -V | head -n1)" = "$VERSION" ] \
+             && [ "$current" != "$VERSION" ]; then
+            echo "::warning::Resolved $VERSION is lower than Cargo.toml's $current; not bumping."
+          else
+            cargo set-version "$VERSION"
+          fi
+
+      - name: Commit changes
+        env:
+          VERSION: ${{ steps.drafter.outputs.resolved_version }}
+        run: |
+          paths=(Cargo.toml Cargo.lock)
+          if ! git diff --quiet -- "${paths[@]}"; then
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add -- "${paths[@]}"
+            git commit -m "Bump version to ${VERSION} [skip ci]"
+            git push
+          fi

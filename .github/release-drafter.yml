@@ -1,0 +1,42 @@
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+# Releases are drafted per `bevy-*` branch, counting from that branch's last
+# release. A branch's first draft is v0.0.1: rename it to the next version
+# before publishing.
+filter-by-commitish: true
+categories:
+  - title: "Breaking Changes"
+    when:
+      label: "breaking-change"
+  - title: "Dependencies"
+    collapse-after: 1
+    when:
+      label: "dependencies"
+
+  # Dependency bumps are always patch, even if labelled `minor` or `major`.
+  # This crate is 0.x, so `breaking-change` bumps the minor version; use
+  # `major` only for 1.0.
+  - type: "version-resolver"
+    semver-increment: "patch"
+    exclusive: true
+    when:
+      label: "dependencies"
+  - type: "version-resolver"
+    semver-increment: "major"
+    when:
+      label: "major"
+  - type: "version-resolver"
+    semver-increment: "minor"
+    when:
+      labels:
+        - "minor"
+        - "breaking-change"
+  - type: "version-resolver"
+    semver-increment: "patch"
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
