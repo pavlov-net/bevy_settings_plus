@@ -14,6 +14,12 @@ adjusted to what the player's GPU supports.
 
 ## Usage
 
+```toml
+[dependencies]
+bevy = "0.20"
+bevy_settings_plus = "0.1"
+```
+
 ```rust
 use bevy::prelude::*;
 use bevy_settings_plus::prelude::*;

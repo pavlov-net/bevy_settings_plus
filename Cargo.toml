@@ -15,16 +15,16 @@ categories = ["game-development", "config"]
 dlss = ["bevy_anti_alias/dlss"]
 
 [dependencies]
-bevy_app = { git = "https://github.com/bevyengine/bevy" }
-bevy_ecs = { git = "https://github.com/bevyengine/bevy" }
-bevy_reflect = { git = "https://github.com/bevyengine/bevy" }
-bevy_render = { git = "https://github.com/bevyengine/bevy" }
-bevy_window = { git = "https://github.com/bevyengine/bevy" }
-bevy_anti_alias = { git = "https://github.com/bevyengine/bevy" }
-bevy_log = { git = "https://github.com/bevyengine/bevy" }
+bevy_app = "0.20.0"
+bevy_ecs = "0.20.0"
+bevy_reflect = "0.20.0"
+bevy_render = "0.20.0"
+bevy_window = "0.20.0"
+bevy_anti_alias = "0.20.0"
+bevy_log = "0.20.0"
 # The package is `bevy-settings`; the crate is imported as `bevy_settings`.
-bevy-settings = { git = "https://github.com/bevyengine/bevy" }
+bevy-settings = "0.20.0"
 wgpu-types = { version = "30", default-features = false }
 
 [dev-dependencies]
-bevy = { git = "https://github.com/bevyengine/bevy", default-features = false, features = ["3d"] }
+bevy = { version = "0.20.0", default-features = false, features = ["3d"] }
