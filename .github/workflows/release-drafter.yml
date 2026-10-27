@@ -20,12 +20,14 @@ jobs:
   release-drafter:
     name: Release Drafter
     runs-on: blacksmith-2vcpu-ubuntu-2404
+    environment: release-drafter
     steps:
       - uses: release-drafter/release-drafter@978bb0b30c5ee8cdd332ced253758157150d43f0 # v7
         id: drafter
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           ref: ${{ github.ref }}
 
       - name: Install Rust toolchain
@@ -57,15 +59,25 @@ jobs:
             cargo set-version "$VERSION"
           fi
 
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app-token
+        with:
+          client-id: ${{ vars.RELEASE_DRAFTER_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_DRAFTER_PRIVATE_KEY }}
+          permission-contents: write
+
       - name: Commit changes
         env:
+          PUSH_TOKEN: ${{ steps.app-token.outputs.token }}
           VERSION: ${{ steps.drafter.outputs.resolved_version }}
         run: |
           paths=(Cargo.toml Cargo.lock)
           if ! git diff --quiet -- "${paths[@]}"; then
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git config --global user.name "pavlov-net-release-drafter[bot]"
+            git config --global user.email "349057244+pavlov-net-release-drafter[bot]@users.noreply.github.com"
             git add -- "${paths[@]}"
             git commit -m "Bump version to ${VERSION} [skip ci]"
-            git push
+            # The app token bypasses the default-branch ruleset; hand it to git only for this push.
+            git -c credential.helper= -c credential.https://github.com.helper= \
+                -c credential.helper='!f() { echo username=x-access-token; echo "password=$PUSH_TOKEN"; }; f' push
           fi
